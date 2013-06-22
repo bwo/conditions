@@ -1,4 +1,4 @@
-(defproject conditions "0.1.0-SNAPSHOT"
+(defproject bwo/conditions "0.1.0-SNAPSHOT"
   :description "Simple resumable exceptions."
   :url "http://github.com/bwo/conditions"
   :license {:name "Eclipse Public License"
