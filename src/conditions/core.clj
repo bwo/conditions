@@ -177,11 +177,11 @@ These are different:
     `(try (do ~@real-forms)
           (catch Exception ~exn
             (let [~unwrapped ~(s/maybe-unwrap exn)]
-              ;; if this is a resumption value, assume that an interior
-              ;; rtry failed to handle it and that we should try to
-              ;; handle it here. Don't call *handler* b/c resumption
-              ;; values aren't exceptions and shouldn't be handled by
-              ;; catches in a handle form anyway.
+              ;; if this is a resumption value, assume that an
+              ;; interior rtry or rthrow failed to handle it and that
+              ;; we should try to handle it here. Don't call *handler*
+              ;; b/c resumption values aren't exceptions and shouldn't
+              ;; be handled by catches in a handle form anyway.
               (if (= (:type ~unwrapped) resumable)
                 ~(s/exn-match-form &env #'% `(:value ~unwrapped)
                                    resume-forms
