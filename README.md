@@ -60,49 +60,49 @@ several catch clauses describing the conditions the handler will
 handle and what to do if they are signalled. The catch clauses are
 specified identically to slingshot's catch clauses:
 
-    - `(catch ClassName c & body)` -> execute `body` in an implicit do
-      with `c` bound to the signalled condition if it is an instance
-      of ClassName
+- `(catch ClassName c & body)` -> execute `body` in an implicit do
+   with `c` bound to the signalled condition if it is an instance of
+   ClassName
     
-    - `(catch [key value & kvs] destruct & body)` -> execute `body` in
-      an implicit do with the names in `destruct` extracted from the
-      signalled condition if the condition is a map `m` matching (and
-      (= value (get m key)) ...)`. E.g. `(catch [:type :exn] {:keys
-      [value]} (* value 2))`.
+- `(catch [key value & kvs] destruct & body)` -> execute `body` in an
+  implicit do with the names in `destruct` extracted from the
+  signalled condition if the condition is a map `m` matching (and (=
+  value (get m key)) ...)`. E.g. `(catch [:type :exn] {:keys [value]}
+  (* value 2))`.
 
-    - `(catch [expression referring to conditions.core/%] destruct &
-      body)` -> matches if the expression evaluates truthily when free
-      occurrences of symbols that refer to conditions.core/% are
-      substituted with the value of the signalled condition. (See the
-      section on hygiene at the bottom of this readme for more.)
+- `(catch [expression referring to conditions.core/%] destruct &
+  body)` -> matches if the expression evaluates truthily when free
+  occurrences of symbols that refer to conditions.core/% are
+  substituted with the value of the signalled condition. (See the
+  section on hygiene at the bottom of this readme for more.)
 
-    - `(catch seq-or-symbol destruct & body)` -> matches if the seq or
-      symbol, which is assumed to evaluate to a function, returns
-      truthy when applied to the condition.
+- `(catch seq-or-symbol destruct & body)` -> matches if the seq or
+  symbol, which is assumed to evaluate to a function, returns truthy
+  when applied to the condition.
 
 One of four actions may be taken in the body of a handler's catch
 clause:
 
-    - If the last expression evaluated is a call to resume, evaluation
-      will continue at the point the condition was raised with an
-      attempt to match the argument to resume with a resume-with
-      clause. If a matching resume-with clause is found, the result of
-      the the rthrow or rtry expression will be the result of
-      evaluating the body of the resume-with clause.
+- If the last expression evaluated is a call to resume, evaluation
+  will continue at the point the condition was raised with an attempt
+  to match the argument to resume with a resume-with clause. If a
+  matching resume-with clause is found, the result of the the rthrow
+  or rtry expression will be the result of evaluating the body of the
+  resume-with clause.
 
-    - If the last expression evaluated is a call to abort, evaluation
-      unwinds to the present call to handle (i.e. bypassing all
-      dynamically nested calls to handle), whose result is the value
-      passed to abort. This emulates traditional try/catch behavior.
+- If the last expression evaluated is a call to abort, evaluation
+  unwinds to the present call to handle (i.e. bypassing all
+  dynamically nested calls to handle), whose result is the value
+  passed to abort. This emulates traditional try/catch behavior.
 
-    - If the last expression evaluated raises an exception, that
-      exception is raised from the site of the rtry or rthrow
-      expression. Note that it is *not* a resumable exception and will
-      not be caught by other handle expressions. (But it can be caught
-      by ordinary exception handlers.)
+- If the last expression evaluated raises an exception, that exception
+  is raised from the site of the rtry or rthrow expression. Note that
+  it is *not* a resumable exception and will not be caught by other
+  handle expressions. (But it can be caught by ordinary exception
+  handlers.)
 
-    - Otherwise, the last expression evaluated is the value of the
-      rtry or rthrow expression.
+- Otherwise, the last expression evaluated is the value of the
+  rtry or rthrow expression.
 
 ### Throwing and resuming resumable exceptions
 
