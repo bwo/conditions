@@ -91,8 +91,8 @@
 (defn perverse [n which]
   (c/handle (if which (perverse n false) (parse-and-divide n))
             (c/catch (if which
-                     (instance? ArithmeticException %)
-                     (instance? ClassCastException %))
+                       (instance? ArithmeticException c/%)
+                       (instance? ClassCastException c/%))
                 e
               (c/abort 1)))
   (swap! passed-through conj which))

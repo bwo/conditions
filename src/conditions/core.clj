@@ -42,6 +42,27 @@ result of the rtry or rthrow clause.
 resume-with has no meaning outside rtry or rthrow expressions (qq.v.)."}
   resume-with (Object.))
 
+(def ^{:doc "When referred to in a selector in a catch or resume-with
+clause, % will be bound to the object being matched.
+
+Note that the mere occurrence of the symbol % does not trigger this!
+These are different:
+
+    (require '[conditions.core :as c :refer [%]])
+
+    ;; % refers to conditions.core/%, so the catch clause will match
+    ;; the thrown exception.
+    (c/handle (c/rthrow {}) (c/catch (map? %) _ (c/resume-with 5)))
+
+    ;; % is shadowed by the let. This will trigger an exception,
+    ;; because (map? %) will be interpreted as a function, but its
+    ;; actual value is true:
+    (let [% {}] (c/handle (c/rthrow {}) (c/catch (map? %) _ (c/resume-with 5))))
+
+    ;; once again, % refers to conditions.core/%.
+    (let [% {}] (c/handle (c/rthrow {}) (c/catch (map? c/%) _ (c/resume-with 5))))"}
+  % (Object.))
+
 (defn- is-not-resume? [env] #(s/uninteresting-clause? env % #'resume-with))
 (defn- is-not-catch? [env] #(s/uninteresting-clause? env % #'catch))
 
@@ -52,7 +73,7 @@ resume-with has no meaning outside rtry or rthrow expressions (qq.v.)."}
    catch-clause => (catch selector destruct & body)
 
    catch clauses in a handle expression match exceptions in a manner
-   simialr to slingshot's catch, i.e. by instance checks against
+   similar to slingshot's catch, i.e. by instance checks against
    classes, map value checks against key-value vectors, or according
    to arbitrary predicates. If a match is found for a clause the
    associated exception value is destructed using the pattern in
@@ -96,6 +117,7 @@ resume-with has no meaning outside rtry or rthrow expressions (qq.v.)."}
        (binding [*abort-depth* ~depth
                  *handler* (fn [~exn]
                              ~(s/exn-match-form
+                               &env #'%
                                exn
                                catch-forms
                                `(binding [*abort-depth* ~old-depth]
@@ -137,7 +159,7 @@ resume-with has no meaning outside rtry or rthrow expressions (qq.v.)."}
     `(do
        (let [~result (*handler* ~exn)]
            (if (= (:type ~result) resumable)
-             ~(s/exn-match-form `(:value ~result) resume-with-clauses
+             ~(s/exn-match-form &env #'% `(:value ~result) resume-with-clauses
                                 `(slingshot/throw+ ~result))
              ~result)))))
 
@@ -160,7 +182,7 @@ resume-with has no meaning outside rtry or rthrow expressions (qq.v.)."}
               ;; values aren't exceptions and shouldn't be handled by
               ;; catches in a handle form anyway.
               (if (= (:type ~unwrapped) resumable)
-                ~(s/exn-match-form `(:value ~unwrapped)
+                ~(s/exn-match-form &env #'% `(:value ~unwrapped)
                                    resume-forms
                                    `(slingshot/throw+ ~unwrapped))
                 (rthrow ~exn ~@resume-forms)))))))
