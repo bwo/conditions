@@ -121,6 +121,8 @@
   "Replaces all qualified symbols that resolve to var in form with
    replacement, and all free unqualified symbols that resolve to var
    and aren't shadowed in env with replacement."
+  ;; this requires lots of traversals of the form if there are lots of
+  ;; different names that resolve to var. However, that seems unlikely.
   [env var replacement form]
   (let [free-vars (atom #{})
         qualified-replaced (w/prewalk (fn [x] (if (and (qualified-symbol? x)
