@@ -53,7 +53,6 @@
       (loop [arglists* arglists bodies bodies mapped-already []]
         (let [arglist (first arglists*)
               body (first bodies)]
-          (println arglist body mapped-already)
           (if arglist
             (recur (rest arglists*)
                    (rest bodies)
