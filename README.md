@@ -37,7 +37,7 @@ response `reciprocal-of` should take to the error. The error is
 handled where it's *raised*, according to a policy determined by where
 and how the result would have been *used*. For instance:
 
-```
+```clojure
 (defn try-again-with [n]
   (c/handle (determine-infinity)
             (c/catch [:type :zerodivisionerror] _ (c/resume {:type :recalc-with :value n}))))
