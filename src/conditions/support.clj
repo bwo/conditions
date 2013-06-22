@@ -43,7 +43,8 @@
        (cond ~@(mapcat #(exn-match-clause % exn-symbol) catch-forms)
              :else ~else-form))))
 
-(defn uninteresting-clause? [f v]
+(defn uninteresting-clause? [env f v]
   (or (not (seq? f))
       (not (symbol? (first f)))
+      (contains? env (first f))
       (not= v (resolve (first f)))))

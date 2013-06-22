@@ -42,8 +42,8 @@ result of the rtry or rthrow clause.
 resume-with has no meaning outside rtry or rthrow expressions (qq.v.)."}
   resume-with (Object.))
 
-(def ^:private is-not-resume? #(s/uninteresting-clause? % #'resume-with))
-(def ^:private is-not-catch? #(s/uninteresting-clause? % #'catch))
+(defn- is-not-resume? [env] #(s/uninteresting-clause? env % #'resume-with))
+(defn- is-not-catch? [env] #(s/uninteresting-clause? env % #'catch))
 
 (defmacro handle
   "Run exprs, with the possibility of resuming exceptions thrown by
@@ -83,12 +83,12 @@ resume-with has no meaning outside rtry or rthrow expressions (qq.v.)."}
       rtry or rthrow expression."
   {:arglists '([exprs* catch-exprs*])} 
   [& forms]
-  (let [[real-forms catch-forms] (split-with is-not-catch? forms)
+  (let [[real-forms catch-forms] (split-with (is-not-catch? &env) forms)
         exn (gensym "exn-")
         old-handler (gensym "old-handler")
         old-depth (gensym "old-depth-")
         depth (gensym "depth-")]
-    (assert (every? (complement is-not-catch?) catch-forms)
+    (assert (every? (complement (is-not-catch? &env)) catch-forms)
             "Only catch clauses can follow catch clauses in a handle expression")
     `(let [~old-handler *handler*
            ~old-depth *abort-depth*
@@ -131,7 +131,7 @@ resume-with has no meaning outside rtry or rthrow expressions (qq.v.)."}
       call resume or abort, or raise an exception), that value will be
       the result of the rthrow expression."
   [exn & resume-with-clauses]
-  (assert (every? (complement is-not-resume?) resume-with-clauses)
+  (assert (every? (complement (is-not-resume? &env)) resume-with-clauses)
           "Only resume-with clauses can follow the exception in rthrow")
   (let [result (gensym "result-")]
     `(do
@@ -146,10 +146,10 @@ resume-with has no meaning outside rtry or rthrow expressions (qq.v.)."}
    throws them using rthrow (q.v.)."
   {:arglists '([exprs* resume-with-clauses*])}
   [& forms]
-  (let [[real-forms resume-forms] (split-with is-not-resume? forms)
+  (let [[real-forms resume-forms] (split-with (is-not-resume? &env) forms)
         exn (gensym "exn-")
         unwrapped (gensym "unwrapped-")]
-    (assert (every? (complement is-not-resume?) resume-forms)
+    (assert (every? (complement (is-not-resume? &env)) resume-forms)
             "Only resume-with clauses can follow resume-with clauses in rtry")
     `(try (do ~@real-forms)
           (catch Exception ~exn
