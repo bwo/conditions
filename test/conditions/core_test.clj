@@ -1,5 +1,5 @@
 (ns conditions.core-test
-  (:require [conditions.core :as c]
+  (:require [conditions.core :as c :refer [catch]]
             [slingshot.slingshot :as slingshot])
   (:use expectations))
 
@@ -216,3 +216,16 @@
                 r)))
 (expect 0 (return-zeroer-3))
 (expect 1/2 (restarter 2))
+
+
+;; we :refer catch, so this is kosher.
+(expect 4 (c/handle (determine-infinity)
+                    (catch [:type :zerodivisionerror] _ (c/resume {:type :return-value
+                                                                   :value 4}))))
+
+;; but this isn't, because the let shadows the catch.
+(expect RuntimeException
+        (eval '(let [catch 5]
+                 (c/handle (determine-infinity)
+                           (catch [:type :zerodivisionerror] _ (c/resume {:type :return-value
+                                                                          :value 4}))))))
