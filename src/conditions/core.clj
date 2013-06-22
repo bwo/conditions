@@ -142,7 +142,8 @@ These are different:
       relevant resume-with clause.
 
       If the value passed to resume does not match any resume-with
-      clause, it is raised as an exception using slingshot's throw+.
+      clause, it bubbles up and can be handled by enclosing rtry
+      blocks.
 
     - If the handle expression raises an exception, the exception will
       be raised from the site of the rthrow expression. Note that this
