@@ -154,15 +154,15 @@ to its caller in an orderly fashion.
 Evaluating `(handler 2)` also results in `2`, but rather more
 circuitously:
 
-    - `(handler 2)` calls `(catcher 2)`
-    - which calls `(parse-and-divide 2)`
-    - which calls `(Integer/parseInt 2)`
-    - which raises a ClassCastException
-    - which matches the handler defined in `handler`
-    - which throws an `ArithmeticException`
-    - which is caught in `catcher`
-    - which returns 2 to `handler`
-    - which returns 2.
+- `(handler 2)` calls `(catcher 2)`
+- which calls `(parse-and-divide 2)`
+- which calls `(Integer/parseInt 2)`
+- which raises a ClassCastException
+- which matches the handler defined in `handler`
+- which throws an `ArithmeticException`
+- which is caught in `catcher`
+- which returns 2 to `handler`
+- which returns 2.
 
 This is not really surprising when you consider that the point of the
 condition handlers is to be executed in the dynamic context in which
