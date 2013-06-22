@@ -60,7 +60,7 @@ several catch clauses describing the conditions the handler will
 handle and what to do if they are signalled. The catch clauses are
 specified identically to slingshot's catch clauses:
 
-    - `(catch ClassName c & body)` -> execute `body` in an implict do
+    - `(catch ClassName c & body)` -> execute `body` in an implicit do
       with `c` bound to the signalled condition if it is an instance
       of ClassName
     
