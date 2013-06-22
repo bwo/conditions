@@ -223,7 +223,13 @@
                     (catch [:type :zerodivisionerror] _ (c/resume {:type :return-value
                                                                    :value 4}))))
 
-;; but this isn't, because the let shadows the catch.
+;; but this isn't, because the let shadows the catch. we get an
+;; exception because "catch" in the catch expression doesn't refer to
+;; conditions.core/catch, meaning that expression is considered part
+;; of the body, so handle attempts to evaluate it---meaning _ is
+;; treated not as a binding form, but as a *use* of the name. Which
+;; isn't bound, so ...
+;; (for that matter, 5 isn't a function!)
 (expect RuntimeException
         (eval '(let [catch 5]
                  (c/handle (determine-infinity)
