@@ -5,8 +5,6 @@
 
 (declare map-free-in-form')
 
-(def smap (comp doall map))
-
 (defn all-symbols [arglist]
   (flatten
    (cond
