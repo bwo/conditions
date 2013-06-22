@@ -7,7 +7,7 @@ Resumable exceptions, aka
 allow code raising an exception to continue at the point the exception
 was raised, according to decisions made by condition handlers. For
 instance, in the following example (adapted from
-[c2](http://c2.com/cgi/wiki?CommonLispConditionSystem),
+[c2](http://c2.com/cgi/wiki?CommonLispConditionSystem)),
 `reciprocal-of` throws an error if the divisor passed is zero, and
 provides for various responses: returning zero, returning an arbitrary
 value, and trying again with a new value. Similarly,
