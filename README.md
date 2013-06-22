@@ -66,7 +66,7 @@ specified identically to slingshot's catch clauses:
     
 - `(catch [key value & kvs] destruct & body)` -> execute `body` in an
   implicit do with the names in `destruct` extracted from the
-  signalled condition if the condition is a map `m` matching (and (=
+  signalled condition if the condition is a map `m` matching `(and (=
   value (get m key)) ...)`. E.g. `(catch [:type :exn] {:keys [value]}
   (* value 2))`.
 
