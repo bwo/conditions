@@ -63,21 +63,46 @@
   (let [regular (take-while #(or (not (seq? %))
                                  (not= 'catch (first %))) clauses)
         catches (drop-while #(or (not (seq? %))
-                                 (not= 'catch (first %))) clauses)]
+                                 (not= 'catch (first %))) clauses)
+        finally (let [l (last clauses)]
+                  (when (and (seq? l) (= 'finally (first l))) l))]
     `(~type ~@(doall (map (map-free-in-form' f bound) regular))
-            ~@(doall (map #(catch-like f bound %) catches)))))
+            ~@(doall (map #(catch-like f bound %) catches))
+            ~@(when finally [(map-free-in-form' f bound finally)]))))
 
 (defn do-like [f bound [type & clauses]]
   `(~type ~@(doall (map (map-free-in-form' f bound) clauses))))
 
+(defn quote-like [f bound expr]
+  expr)
+
+(defn case-like [f bound [type ge shift mask default imap & rest]]
+  (let [imap (->> imap
+                  (map (fn [[k [m expr]]]
+                         [k [m (map-free-in-form' f bound expr)]]))
+                  (into {}))]
+    `(~type ~ge ~shift ~mask ~(map-free-in-form f (conj bound ge) default)
+            ~imap ~@rest)))
+
 (def binding-forms
-  {'let* let-like
-   'loop* let-like
-   'letfn* letrec-like
-   'fn* fn-like
+  {
+   'case* case-like
    'def def-like
    'do do-like
-   'try try-like})
+   'fn* fn-like
+   'if do-like
+   'let* let-like
+   'letfn* letrec-like
+   'loop* let-like
+   'monitor-enter 'do-like
+   'new do-like
+   'quote quote-like
+   'recur do-like
+   'set! do-like
+   'throw do-like
+   'try try-like
+   'var do-like
+   })
 
 (defn macro-invocation? [f]
   (and (seq? f)
@@ -112,6 +137,7 @@
                        (into {}))
       (set? form) (into #{} (map (map-free-in-form' f bindings) form))      
       (and (symbol? form)
+           (not (.startsWith (name form) "."))
            (not (contains? bindings form))) (f form)
       :else form)))
 
