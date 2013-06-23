@@ -79,7 +79,7 @@
   ;; declare that people doing so are just getting what's coming to
   ;; them, given that we don't want to *actually execute* the code
   ;; being inspected (the approach taken by jvm.tools.analyzer).
-  (let [result (apply (resolve (first f)) (zipmap bindings (repeat true)) f (rest f))]
+  (let [result (apply (resolve (first f)) f (zipmap bindings (repeat true)) (rest f))]
     (if (macro-invokation? result)
       (recur bindings result)
       result)))
