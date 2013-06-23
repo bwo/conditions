@@ -36,3 +36,31 @@
 ;;  [it (get {:x {:y 3}} :x)]
 ;;  (if it (let* [it (get it :y)] (if it [it it-1] it)) nil))
 ;;                ^^ !                ^^ !
+
+
+(expect '#{try z}
+        (f/free-in-form '(try (let [x (fn [y] y)]
+                                (x z))
+                              (catch Exception e e))))
+
+(expect '#{try z e}
+        (f/free-in-form '(try (let [x (fn [y] y)]
+                                (x z))
+                              (catch Exception a e))))
+
+(expect '#{try z y}
+        (f/free-in-form '(try (let [x (fn f [y] (f y))]
+                                (x z y))
+                              (catch Exception e e))))
+
+(expect '#{try z y f}
+        (f/free-in-form '(try (let [x (fn g [y] (f y))]
+                                (x z y))
+                              (catch Exception e e))))
+
+(expect '#{try z y f baz}
+        (f/free-in-form '(try (let [x (fn g [y] (f y))]
+                                (letfn [(bar [baz] (foo baz))
+                                        (foo [quux] (bar baz quux))]
+                                  (foo z y)))
+                              (catch Exception e e))))

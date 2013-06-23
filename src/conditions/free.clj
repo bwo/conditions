@@ -34,7 +34,7 @@
         bound (reduce conj bound (mapcat all-symbols bound-names))
         exprs (take-nth 2 (rest bindings))]
     `(~type [~@(interleave bound-names (map (map-free-in-form' f bound) exprs))]
-            ~@(map (map-free-in-form' f bound) forms))))
+            ~@(doall (map (map-free-in-form' f bound) forms)))))
 
 (defn def-like [f bound [type nm expr]]
   ;; the name being defined is visible in the expression
