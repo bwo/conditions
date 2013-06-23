@@ -35,4 +35,4 @@
 ;; (let*
 ;;  [it (get {:x {:y 3}} :x)]
 ;;  (if it (let* [it (get it :y)] (if it [it it-1] it)) nil))
-;;                ^^ !
+;;                ^^ !                ^^ !
