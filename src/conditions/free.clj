@@ -89,7 +89,7 @@
    'case*          case-like
    'def            def-like
    'do             do-like
-   'fn* v          fn-like
+   'fn*            fn-like
    'if             do-like
    'let*           let-like
    'letfn*         letrec-like
