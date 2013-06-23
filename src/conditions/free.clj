@@ -112,6 +112,11 @@
   ([init-env f form]
      (map-free-in-form' f init-env form)))
 
+(defn macroexpand-all
+  "Expand all macros in form recursively, propagating environment information."
+  [form]
+  (map-free-in-form identity form))
+
 (defn free-in-form
   "Return a set of all free symbols in form."
   [form]
