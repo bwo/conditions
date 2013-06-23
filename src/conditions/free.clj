@@ -1,6 +1,5 @@
 (ns conditions.free
-  (:require [clojure.walk :as w]
-            [clojure.set :as s]
+  (:require [clojure.set :as s]
             [slingshot.slingshot :as slingshot]))
 
 (declare map-free-in-form')
@@ -12,133 +11,148 @@
     (or (map? arglist) (sequential? arglist)) (keep all-symbols arglist)
     :else nil)))
 
-(defn let-like [f needle [type bindings & forms]]
-  (loop [binding-pairs (partition 2 bindings) mapped-bindings [] established-bindings #{}]
-    (cond
-     (established-bindings needle)
-     `(~type [~@(apply concat (concat mapped-bindings binding-pairs))] ~@forms)
-     (seq binding-pairs)
-     (let [[bound binding-expr] (first binding-pairs)]
-       (recur (rest binding-pairs)
-              (conj mapped-bindings [bound (map-free-in-form' f needle binding-expr)])
-              (s/union established-bindings (set (all-symbols bound)))))
-     :else `(~type [~@(apply concat mapped-bindings)]
-                   ~@(map (map-free-in-form' f needle) forms)))))
+(defn let-like [f bound [type bindings & forms]]
+  (loop [binding-pairs (partition 2 bindings) mapped-bindings [] established-bindings bound]
+    (if (seq binding-pairs)
+      (let [[new-bindings binding-expr] (first binding-pairs)]
+        (recur (rest binding-pairs)
+               (conj mapped-bindings [new-bindings (map-free-in-form' f bound binding-expr)])
+               (s/union established-bindings (set (all-symbols new-bindings)))))
+      `(~type [~@(apply concat mapped-bindings)]
+              ~@(doall (map (map-free-in-form' f established-bindings) forms))))))
 
-(defn catch-like [f needle [c cls exc-name & forms :as expr]]
-  (if (= exc-name needle)
-    expr
-    `(~c ~(map-free-in-form' f needle cls) ~exc-name ~@(map (map-free-in-form' f needle) forms))))
+(defn catch-like [f bound [c cls exc-name & forms]]
+  (let [mapped (doall (map (map-free-in-form' f (conj bound exc-name)) forms))]
+    `(~c ~cls ~exc-name ~@mapped)))
 
-(defn letrec-like [f needle [type bindings & forms :as expr]]
+(defn letrec-like [f bound [type bindings & forms :as expr]]
   ;; all bound names are visible in all binding expressions, no matter
   ;; the order of the bindings. So, first we check all bound symbols;
   ;; if what we're looking for isn't there, we map over all binding
   ;; expressions and the body.
-  (let [bindings (take-nth 2 bindings)
+  (let [bound-names (take-nth 2 bindings)
+        bound (reduce conj bound (mapcat all-symbols bound-names))
         exprs (take-nth 2 (rest bindings))]
-    (if (some #(= needle %) (mapcat all-symbols bindings))
-      expr
-      `(~type [~@(interleave bindings (map (map-free-in-form' f needle) exprs))]
-              ~@(map (map-free-in-form' f needle) forms)))))
+    `(~type [~@(interleave bound-names (map (map-free-in-form' f bound) exprs))]
+            ~@(map (map-free-in-form' f bound) forms))))
 
-(defn fn-like [f needle [type & spec :as expr]]
+(defn def-like [f bound [type nm expr]]
+  ;; the name being defined is visible in the expression
+  `(~type ~nm ~(map-free-in-form' f (conj bound nm) expr)))
+
+(defn fn-like [f bound [type & spec]]
   (let [name (when (symbol? (first spec)) (first spec))
         spec (if name (rest spec) spec)
-        [arglists bodies] (if (vector? (first spec))
-                            [[(first spec)] [(rest spec)]]
-                            [(map first spec) (map rest spec)])]
-    (if (= needle name)
-      expr
-      (loop [arglists* arglists bodies bodies mapped-already []]
-        (let [arglist (first arglists*)
-              body (first bodies)]
-          (if arglist
-            (recur (rest arglists*)
+        [all-arglists bodies] (if (vector? (first spec))
+                                [[(first spec)] [(rest spec)]]
+                                [(map first spec) (map rest spec)])
+        bound (if name (conj bound name) bound)]
+    (loop [arglists all-arglists bodies bodies already []]
+      (let [arglist (first arglists)
+            body (first bodies)]
+        (if arglist
+          (let [new-bound (reduce conj bound (all-symbols arglist))]
+            (recur (rest arglists)
                    (rest bodies)
-                   (conj mapped-already (if (not-any? #(= needle %) arglist)
-                                          (map (map-free-in-form' f needle) body)
-                                          body)))
-            `(~type ~@(when name [name])
-                    ~@(map (fn [al body] `(~al ~@body)) arglists mapped-already))))))))
+                   (conj already (doall (map (map-free-in-form' f new-bound) body)))))
+          `(~type ~@(when name [name])
+                  ~@(doall
+                     (map (fn [arglist body] `(~arglist ~@body)) all-arglists already))))))))
 
 (def binding-forms
   {'let* let-like
    'loop* let-like
    'letfn* letrec-like
    'fn* fn-like
+   'def def-like
    'catch catch-like})
 
+(defn macro-invokation? [f]
+  (and (seq? f)
+       (symbol? (first f))
+       (-> f first resolve meta :macro)))
+
+(defn expand-macro [bindings f]
+  ;; we just have to assume that no one would be so perverse as to
+  ;; write a macro that doesn't just see keys are in &env, but
+  ;; actually depends on the particular *values*---or at least, we can
+  ;; declare that people doing so are just getting what's coming to
+  ;; them, given that we don't want to *actually execute* the code
+  ;; being inspected (the approach taken by jvm.tools.analyzer).
+  (let [result (apply (resolve (first f)) (zipmap bindings (repeat true)) f (rest f))]
+    (if (macro-invokation? result)
+      (recur bindings result)
+      result)))
+
 (defn map-free-in-form'
-  ([f s] #(map-free-in-form' f s %))
-  ([f s form]
+  ([f bindings] #(map-free-in-form' f bindings %))
+  ([f bindings form]
      (cond
-      (seq? form) (cond (not-any? #{s} (all-symbols form)) form
-                        (binding-forms (first form)) ((binding-forms (first form)) f s form)
-                        :else (doall (map (map-free-in-form' f s) form)))
-      (vector? form) (mapv (map-free-in-form' f s) form)
+      (seq? form) (cond
+                   (macro-invokation? form)     (recur f bindings (expand-macro bindings form))
+                   (binding-forms (first form)) ((binding-forms (first form)) f bindings form)
+                   :else                       (doall (map (map-free-in-form' f bindings) form)))
+      (vector? form) (mapv (map-free-in-form' f bindings) form)
       ;; breaks record literals :(
       (map? form) (->> form
-                       (map (fn [[key value]] [(map-free-in-form' f s key)
-                                              (map-free-in-form' f s value)]))
+                       (map (fn [[key value]] [(map-free-in-form' f bindings key)
+                                              (map-free-in-form' f bindings value)]))
                        (into {}))
-      (set? form) (into #{} (map (map-free-in-form' f s) form))
-      (= form s) (f s)
+      (set? form) (into #{} (map (map-free-in-form' f bindings) form))      
+      (and (symbol? form)
+           (not (contains? bindings form))) (f form)
       :else form)))
 
-(defn map-free-in-form [f s form]  
-  (map-free-in-form' f s (w/macroexpand-all form)))
+(defn map-free-in-form
+  "Transform all free symbols in form by the function f. An initial
+   environment may be provided. Note that this function macroexpands
+   form."
+  ([f form]  
+     (map-free-in-form #{} f form))
+  ([init-env f form]
+     (map-free-in-form' f init-env form)))
 
-(defn replace-free-in-form [orig replacement form]
-  (map-free-in-form (constantly replacement) orig form))
+(defn free-in-form
+  "Return a set of all free symbols in form."
+  [form]
+  (let [a (atom #{})]
+    (map-free-in-form (fn [s] (swap! a conj s) s) form)
+    @a))
 
-(defn free-in-form? [s form]
-  (slingshot/try+ (doall (map-free-in-form (fn [v] (slingshot/throw+ true)) s form))
-                  false
-                  (catch true? _ true)))
+(defn free-in-form-by?
+  "Returns true if a symbol for which pred is true is free in form,
+   stopping as soon as the first free occurrence is found."  
+  [pred form]
+  (slingshot/try+
+   (doall (map-free-in-form (fn [v] (if (pred v) (slingshot/throw+ true) v)) form))
+   false
+   (catch true? _ true)))
+
+(defn free-in-form?
+  "Returns true if the symbol s is free in form."
+  [s form]
+  (free-in-form-by? (partial = s) form))
+
+(defn replace-free-in-form
+  "Replace all free symbols in form with replacement."
+  [replacement form]
+  (map-free-in-form (constantly replacement) form))
+
+
 
 (defn qualified-symbol? [x]
   (and (symbol? x) (re-find #"/" (str x))))
 
 (defn contains-reference?
-  "Returns true if a qualified symbol resolves to var in form, or if
-   a free unqualified symbol not shadowed by env resolves to var in form."
+  "Returns true if a free symbol not shadowed by env resolves to var in form."
   [env var form]
-  (slingshot/try+ (w/prewalk (fn [x] (if (and (qualified-symbol? x)
-                                             (= var (resolve x)))
-                                      (slingshot/throw+ true)
-                                      x)) form)
-                  (w/prewalk (fn [x] (if (and (symbol? x)
-                                             (not (contains? env x))
-                                             (= var (resolve x))
-                                             (free-in-form? x form))
-                                      (slingshot/throw+ true)
-                                      x)) form)
-                  false
-                  (catch true? _ true)))
+  (free-in-form-by? (fn [s] (and (not (contains? env s))
+                                (= var (resolve s)))) form))
 
 (defn replace-all-reference
-  "Replaces all qualified symbols that resolve to var in form with
-   replacement, and all free unqualified symbols that resolve to var
-   and aren't shadowed in env with replacement."
-  ;; this requires lots of traversals of the form if there are lots of
-  ;; different names that resolve to var. However, that seems unlikely.
+  "Replaces free symbols not shadowed by env that resolve to var in
+   form with replacement."
   [env var replacement form]
-  (let [free-vars (atom #{})
-        qualified-replaced (w/prewalk (fn [x] (if (and (qualified-symbol? x)
-                                                      (= var (resolve x)))
-                                               replacement
-                                               x)) form)]
-
-    (w/prewalk (fn [x] (when (and (symbol? x)
-                                 (= var (resolve x))
-                                 (not (contains? env x)))
-                        ;; we can't replace it now, because x might
-                        ;; resolve, not be shadowed, and be free in
-                        ;; form, but not be free in *this*
-                        ;; occurrence.
-                        (swap! free-vars conj x))
-                 x) qualified-replaced)
-    (reduce (fn [form v] (replace-free-in-form v replacement form))
-            qualified-replaced
-            @free-vars)))
+  (map-free-in-form env (fn [s] (if (= var (resolve s))
+                                 replacement
+                                 s)) form))
