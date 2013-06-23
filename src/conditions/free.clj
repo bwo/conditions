@@ -84,25 +84,46 @@
     `(~type ~ge ~shift ~mask ~(map-free-in-form f (conj bound ge) default)
             ~imap ~@rest)))
 
+(defn method-like [f bound method]
+  (let [[_ name [params & body]] (fn-like f bound (cons 'fn* method))]
+    `(~name ~params ~@body)))
+
+(defn map-spec [f bound spec]
+  (if (seq? spec)
+    (method-like f bound spec)
+    spec))
+
+(defn reify-like [f bound [type & specs]]
+  `(~type ~@(doall (map #(map-spec f bound %) specs))))
+
+(defn deftype-like [f bound [type name fields & specs]]
+  (let [bound (reduce conj bound fields)]
+    `(~type ~name ~fields ~@(doall (map #(map-spec f bound %) specs)))))
+
 (def binding-forms
-  {
-   'case*          case-like
-   'def            def-like
-   'do             do-like
-   'fn*            fn-like
-   'if             do-like
-   'let*           let-like
-   'letfn*         letrec-like
-   'loop*          let-like
-   'monitor-enter  do-like
-   'new            do-like
-   'quote          quote-like
-   'recur          do-like
-   'set!           do-like
-   'throw          do-like
-   'try            try-like
-   'var            do-like
-   })
+  (let [unqualified {
+                     'case*          case-like
+                     'def            def-like
+                     'deftype        deftype-like
+                     'do             do-like
+                     'fn*            fn-like
+                     'if             do-like
+                     'import*        quote-like
+                     'let*           let-like
+                     'letfn*         letrec-like
+                     'loop*          let-like
+                     'monitor-enter  do-like
+                     'new            do-like
+                     'quote          quote-like
+                     'recur          do-like
+                     'reify          reify-like
+                     'set!           do-like
+                     'throw          do-like
+                     'try            try-like
+                     'var            do-like
+                     }]
+    (reduce (fn [m k] (assoc m (symbol "clojure.core" (str k)) (get m k)))
+            unqualified (keys unqualified))))
 
 (defn macro-invocation? [f]
   (and (seq? f)
@@ -126,8 +147,8 @@
   ([f bindings form]
      (cond
       (seq? form) (cond
-                   (macro-invocation? form)     (recur f bindings (expand-macro bindings form))
                    (binding-forms (first form)) ((binding-forms (first form)) f bindings form)
+                   (macro-invocation? form)     (recur f bindings (expand-macro bindings form))
                    :else                       (doall (map (map-free-in-form' f bindings) form)))
       (vector? form) (mapv (map-free-in-form' f bindings) form)
       ;; breaks record literals :(
