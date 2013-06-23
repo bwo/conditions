@@ -86,22 +86,22 @@
 
 (def binding-forms
   {
-   'case* case-like
-   'def def-like
-   'do do-like
-   'fn* fn-like
-   'if do-like
-   'let* let-like
-   'letfn* letrec-like
-   'loop* let-like
-   'monitor-enter 'do-like
-   'new do-like
-   'quote quote-like
-   'recur do-like
-   'set! do-like
-   'throw do-like
-   'try try-like
-   'var do-like
+   'case*          case-like
+   'def            def-like
+   'do             do-like
+   'fn* v          fn-like
+   'if             do-like
+   'let*           let-like
+   'letfn*         letrec-like
+   'loop*          let-like
+   'monitor-enter  do-like
+   'new            do-like
+   'quote          quote-like
+   'recur          do-like
+   'set!           do-like
+   'throw          do-like
+   'try            try-like
+   'var            do-like
    })
 
 (defn macro-invocation? [f]
