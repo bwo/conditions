@@ -25,4 +25,14 @@
                               (if it-1 [it it-1] it))
                      nil))
           r))
-        ;; cf. clojure.walk/macroexpand-all)
+;; Compare:
+;; conditions.free-test> (clojure.pprint/pprint (clojure.walk/macroexpand-all
+;;                                               '(aif (get {:x {:y 3}} :x)
+;;                                                     (aif (get it :y)
+;;                                                          [it it-1]
+;;                                                          it)
+;;                                                     nil)))
+;; (let*
+;;  [it (get {:x {:y 3}} :x)]
+;;  (if it (let* [it (get it :y)] (if it [it it-1] it)) nil))
+;;                ^^ !
