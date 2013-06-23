@@ -124,7 +124,7 @@
    stopping as soon as the first free occurrence is found."  
   [pred form]
   (slingshot/try+
-   (doall (map-free-in-form (fn [v] (if (pred v) (slingshot/throw+ true) v)) form))
+   (map-free-in-form (fn [v] (if (pred v) (slingshot/throw+ true) v)) form)
    false
    (catch true? _ true)))
 
