@@ -67,12 +67,16 @@
     `(~type ~@(doall (map (map-free-in-form' f bound) regular))
             ~@(doall (map #(catch-like f bound %) catches)))))
 
+(defn do-like [f bound [type & clauses]]
+  `(~type ~@(doall (map (map-free-in-form' f bound) clauses))))
+
 (def binding-forms
   {'let* let-like
    'loop* let-like
    'letfn* letrec-like
    'fn* fn-like
    'def def-like
+   'do do-like
    'try try-like})
 
 (defn macro-invocation? [f]
