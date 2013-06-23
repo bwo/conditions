@@ -59,13 +59,21 @@
                   ~@(doall
                      (map (fn [arglist body] `(~arglist ~@body)) all-arglists already))))))))
 
+(defn try-like [f bound [type & clauses]]
+  (let [regular (take-while #(or (not (seq? %))
+                                 (not= 'catch (first %))) clauses)
+        catches (drop-while #(or (not (seq? %))
+                                 (not= 'catch (first %))) clauses)]
+    `(~type ~@(doall (map (map-free-in-form' f bound) regular))
+            ~@(doall (map #(catch-like f bound %) catches)))))
+
 (def binding-forms
   {'let* let-like
    'loop* let-like
    'letfn* letrec-like
    'fn* fn-like
    'def def-like
-   'catch catch-like})
+   'try try-like})
 
 (defn macro-invokation? [f]
   (and (seq? f)

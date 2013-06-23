@@ -37,30 +37,42 @@
 ;;  (if it (let* [it (get it :y)] (if it [it it-1] it)) nil))
 ;;                ^^ !                ^^ !
 
-
-(expect '#{try z}
+(expect '#{z}
         (f/free-in-form '(try (let [x (fn [y] y)]
                                 (x z))
                               (catch Exception e e))))
 
-(expect '#{try z e}
+(expect '#{z e}
         (f/free-in-form '(try (let [x (fn [y] y)]
                                 (x z))
                               (catch Exception a e))))
 
-(expect '#{try z y}
+(expect '#{z y}
         (f/free-in-form '(try (let [x (fn f [y] (f y))]
                                 (x z y))
                               (catch Exception e e))))
 
-(expect '#{try z y f}
+(expect '#{z y f}
         (f/free-in-form '(try (let [x (fn g [y] (f y))]
                                 (x z y))
                               (catch Exception e e))))
 
-(expect '#{try z y f baz}
+(expect '#{z y f baz}
         (f/free-in-form '(try (let [x (fn g [y] (f y))]
                                 (letfn [(bar [baz] (foo baz))
                                         (foo [quux] (bar baz quux))]
                                   (foo z y)))
                               (catch Exception e e))))
+
+(expect '#{try z fn*}
+        (f/free-in-form '(try (let [x (fn [y] y)]
+                                (x z try fn*))
+                              (catch Exception e e))))
+
+;; note that the above is, strangely, correct:
+(expect [1 2 3] (let [z 1
+                      try 2
+                      fn* 3]
+                  (try (let [x (fn* ([a b c] [a b c]))]
+                         (x z try fn*))
+                       (catch Exception e e))))
