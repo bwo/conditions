@@ -75,7 +75,7 @@
    'def def-like
    'try try-like})
 
-(defn macro-invokation? [f]
+(defn macro-invocation? [f]
   (and (seq? f)
        (symbol? (first f))
        (-> f first resolve meta :macro)))
@@ -88,7 +88,7 @@
   ;; them, given that we don't want to *actually execute* the code
   ;; being inspected (the approach taken by jvm.tools.analyzer).
   (let [result (apply (resolve (first f)) f (zipmap bindings (repeat true)) (rest f))]
-    (if (macro-invokation? result)
+    (if (macro-invocation? result)
       (recur bindings result)
       result)))
 
@@ -97,7 +97,7 @@
   ([f bindings form]
      (cond
       (seq? form) (cond
-                   (macro-invokation? form)     (recur f bindings (expand-macro bindings form))
+                   (macro-invocation? form)     (recur f bindings (expand-macro bindings form))
                    (binding-forms (first form)) ((binding-forms (first form)) f bindings form)
                    :else                       (doall (map (map-free-in-form' f bindings) form)))
       (vector? form) (mapv (map-free-in-form' f bindings) form)
