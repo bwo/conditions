@@ -33,7 +33,7 @@
   (let [bound-names (take-nth 2 bindings)
         bound (reduce conj bound (mapcat all-symbols bound-names))
         exprs (take-nth 2 (rest bindings))]
-    `(~type [~@(interleave bound-names (map (map-free-in-form' f bound) exprs))]
+    `(~type [~@(doall (interleave bound-names (map (map-free-in-form' f bound) exprs)))]
             ~@(doall (map (map-free-in-form' f bound) forms)))))
 
 (defn def-like [f bound [type nm expr]]
