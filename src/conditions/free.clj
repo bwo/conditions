@@ -108,6 +108,9 @@
     `(~type ~name ~class ~fields ~impls ~ifaces
             ~@(doall (map #(method-like f bound %) methods)))))
 
+(defn new-like [f bound [type cls & args]]
+  `(~type ~cls ~@(doall (map (map-free-in-form' f bound) args))))
+
 (def binding-forms
   (let [unqualified {
                      'case*          case-like
@@ -122,7 +125,7 @@
                      'letfn*         letrec-like
                      'loop*          let-like
                      'monitor-enter  do-like
-                     'new            do-like
+                     'new            new-like
                      'quote          quote-like
                      'recur          do-like
                      'reify          reify-like
@@ -130,7 +133,7 @@
                      'set!           do-like
                      'throw          do-like
                      'try            try-like
-                     'var            do-like
+                     'var            quote-like
                      }]
     (reduce (fn [m k] (assoc m (symbol "clojure.core" (str k)) (get m k)))
             unqualified (keys unqualified))))
@@ -168,7 +171,9 @@
                        (into {}))
       (set? form) (into #{} (map (map-free-in-form' f bindings) form))      
       (and (symbol? form)
-           (not (.startsWith (name form) "."))
+           (not (let [nm (name form)]
+                  (or (.startsWith nm ".")
+                      (.endsWith nm "."))))
            (not (contains? bindings form))) (f form)
       :else form)))
 
@@ -182,7 +187,8 @@
      (map-free-in-form' f init-env form)))
 
 (defn macroexpand-all
-  "Expand all macros in form recursively, propagating environment information."
+  "Expand all macros in form recursively, propagating information
+   about locally bound symbols."
   [form]
   (map-free-in-form identity form))
 
@@ -211,11 +217,6 @@
   "Replace all free symbols in form with replacement."
   [replacement form]
   (map-free-in-form (constantly replacement) form))
-
-
-
-(defn qualified-symbol? [x]
-  (and (symbol? x) (re-find #"/" (str x))))
 
 (defn contains-reference?
   "Returns true if a free symbol not shadowed by env resolves to var in form."
