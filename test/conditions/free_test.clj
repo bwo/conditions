@@ -64,6 +64,16 @@
                                   (foo z y)))
                               (catch Exception e e))))
 
+(expect '#{that clojure.core/deref c first range rest}
+ (f/free-in-form '(let [x (reify IDeref (deref [this] that))]
+                    (if @x
+                      (throw (loop [a (range 10)]
+                               (when-let [af (first a)]
+                                 (ArithmeticException.))
+                               (recur (rest a))))
+                      (do (var expect)
+                          (new Exception c))))))
+
 (expect '#{try z fn*}
         (f/free-in-form '(try (let [x (fn [y] y)]
                                 (x z try fn*))
