@@ -111,8 +111,13 @@
 (defn new-like [f bound [type cls & args]]
   `(~type ~cls ~@(doall (map (map-free-in-form' f bound) args))))
 
+(defn dot-like [f bound [type obj member & args]]
+  `(~type ~(map-free-in-form' f bound obj) ~member
+          ~@(doall (map (map-free-in-form' f bound) args))))
+
 (def binding-forms
   (let [unqualified {
+                     '.              dot-like
                      'case*          case-like
                      'def            def-like
                      'deftype        deftype-like
@@ -131,7 +136,7 @@
                      'recur          do-like
                      'reify          reify-like
                      'reify*         reify*-like
-                     'set!           do-like
+                     'set!           dot-like
                      'throw          do-like
                      'try            try-like
                      'var            quote-like
