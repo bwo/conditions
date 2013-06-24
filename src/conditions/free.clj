@@ -100,11 +100,20 @@
   (let [bound (reduce conj bound fields)]
     `(~type ~name ~fields ~@(doall (map #(map-spec f bound %) specs)))))
 
+(defn reify*-like [f bound [type ifaces & methods]]
+  `(~type ~ifaces ~@(doall (map #(method-like f bound %) methods))))
+
+(defn deftype*-like [f bound [type name class fields impls ifaces & methods]]
+  (let [bound (reduce conj bound fields)]
+    `(~type ~name ~class ~fields ~impls ~ifaces
+            ~@(doall (map #(method-like f bound %) methods)))))
+
 (def binding-forms
   (let [unqualified {
                      'case*          case-like
                      'def            def-like
                      'deftype        deftype-like
+                     'deftype*       deftype*-like
                      'do             do-like
                      'fn*            fn-like
                      'if             do-like
@@ -117,6 +126,7 @@
                      'quote          quote-like
                      'recur          do-like
                      'reify          reify-like
+                     'reify*         reify*-like
                      'set!           do-like
                      'throw          do-like
                      'try            try-like
