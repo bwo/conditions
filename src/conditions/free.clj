@@ -136,7 +136,7 @@
                      'recur          do-like
                      'reify          reify-like
                      'reify*         reify*-like
-                     'set!           dot-like
+                     'set!           do-like
                      'throw          do-like
                      'try            try-like
                      'var            quote-like
