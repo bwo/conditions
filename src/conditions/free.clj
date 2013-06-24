@@ -125,6 +125,7 @@
                      'letfn*         letrec-like
                      'loop*          let-like
                      'monitor-enter  do-like
+                     'monitor-exit   do-like
                      'new            new-like
                      'quote          quote-like
                      'recur          do-like
