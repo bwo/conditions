@@ -139,6 +139,12 @@
                      'set!           do-like
                      'throw          do-like
                      'try            try-like
+                     ;; "var" is weird in that its argument is the
+                     ;; *textual* symbol:
+                     ;; > ((fn [a] (var a)) 6)
+                     ;; #'user/a
+                     ;; Consequently I'm not sure how meaningful it is
+                     ;; to consider its argument either free or bound.
                      'var            quote-like
                      }]
     (reduce (fn [m k] (assoc m (symbol "clojure.core" (str k)) (get m k)))
