@@ -88,6 +88,12 @@
                        (catch Exception e e))))
 
 
+(expect '#{clojure.core/str f}
+        (f/free-in-form '(let [x clojure.core/str] (x f))))
+
+(expect '#{f}
+        (f/free-in-form false '(let [x clojure.core/str] (x f))))
+
 (expect '(. kk (startsWith (:x {:x zz})))
         (f/map-free-in-form (fn [s] (symbol (str s s)))
                             '(. k (startsWith (:x {:x z})))))

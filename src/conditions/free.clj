@@ -197,6 +197,10 @@
     (expand-macro bindings f)
     f))
 
+(def ^:dynamic *qualified-are-free* true)
+(defn qualified? [s]
+  (re-find #"/" (str s)))
+
 (defn map-free-in-form'
   ([f bindings] #(map-free-in-form' f bindings %))
   ([f bindings form]
@@ -216,19 +220,37 @@
            (not (let [nm (name form)]
                   (or (.startsWith nm ".")
                       (.endsWith nm "."))))
-           (not (contains? bindings form))) (f form)
+           (not (contains? bindings form))
+           (or *qualified-are-free* (not (qualified? form)))) (f form)
       :else form)))
 
 (defn map-free-in-form
-  "Transform all free symbols in form by the function f. An initial
-   environment may be provided. Note that this function macroexpands
-   form.
+  "(map-free-in-form f form) transforms all free symbols in form by
+   the function f. form is macroexpanded along the way (so that one
+   may macroexpand a form by passing in identity as f).
 
-   Note that qualified symbols will always be considered free."
+   (map-free-in-form initial-env f form) uses initial-env (a set) as
+   an initial environment.
+
+   (map-free-in-form qualified-are-free? initial-env f form) controls
+   whether or not qualified symbols are considered free. By default
+   they are, reasoning that in an expression such as the following:
+
+      (let [f clojure.core/str] (f 1))
+
+   There is no visible binding for clojure.core/str. However, one
+   might also reason that since local bindings *cannot* be introduced
+   for qualified symbols, calling them \"free\" is somewhat
+   misleading. To never consider qualified symbols free, the
+   four-argument form of this function may be used with an initial
+   falsy argument."
   ([f form]  
      (map-free-in-form #{} f form))
   ([init-env f form]
-     (map-free-in-form' false f init-env form)))
+     (map-free-in-form true init-env f form))
+  ([qualfied-are-free? init-env f form]
+     (binding [*qualified-are-free* qualfied-are-free?]
+       (map-free-in-form' f init-env form))))
 
 (defn macroexpand-all
   "Expand all macros in form recursively, propagating information
@@ -238,24 +260,28 @@
 
 (defn free-in-form
   "Return a set of all free symbols in form."
-  [form]
-  (let [a (atom #{})]
-    (map-free-in-form (fn [s] (swap! a conj s) s) form)
-    @a))
+  ([form] (free-in-form true form))
+  ([qualified-are-free? form]
+     (let [a (atom #{})]
+       (map-free-in-form qualified-are-free? #{} (fn [s] (swap! a conj s) s) form)
+       @a)))
 
 (defn free-in-form-by?
   "Returns true if a symbol for which pred is true is free in form,
-   stopping as soon as the first free occurrence is found."  
-  [pred form]
-  (slingshot/try+
-   (map-free-in-form (fn [v] (if (pred v) (slingshot/throw+ true) v)) form)
-   false
-   (catch true? _ true)))
+   stopping as soon as the first free occurrence is found."
+  ([pred form] (free-in-form-by? true pred form))
+  ([qualified-are-free? pred form]
+     (slingshot/try+
+      (map-free-in-form qualified-are-free? #{} (fn [v] (if (pred v) (slingshot/throw+ true) v)) form)
+      false
+      (catch true? _ true))))
 
 (defn free-in-form?
   "Returns true if the symbol s is free in form."
-  [s form]
-  (free-in-form-by? (partial = s) form))
+  ([s form]
+     (free-in-form? true s form))
+  ([qualified-are-free? s form]
+     (free-in-form-by? qualified-are-free? (partial = s) form)))
 
 (defn replace-free-in-form
   "Replace all free symbols in form with replacement."
