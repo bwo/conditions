@@ -166,6 +166,10 @@
                      ;; #'user/a
                      ;; Consequently I'm not sure how meaningful it is
                      ;; to consider its argument either free or bound.
+                     ;; (on the other hand, don't similar
+                     ;; considerations suggest treating qualified
+                     ;; symbols as *not* free? since no local bindings
+                     ;; can be introduced for them.)
                      'var            quote-like
                      }]
     (reduce (fn [m k] (assoc m (symbol "clojure.core" (str k)) (get m k)))
@@ -224,7 +228,7 @@
   ([f form]  
      (map-free-in-form #{} f form))
   ([init-env f form]
-     (map-free-in-form' f init-env form)))
+     (map-free-in-form' false f init-env form)))
 
 (defn macroexpand-all
   "Expand all macros in form recursively, propagating information
