@@ -86,3 +86,12 @@
                   (try (let [x (fn* ([a b c] [a b c]))]
                          (x z try fn*))
                        (catch Exception e e))))
+
+
+(expect '(. kk (startsWith (:x {:x zz})))
+        (f/map-free-in-form (fn [s] (symbol (str s s)))
+                            '(. k (startsWith (:x {:x z})))))
+
+(expect '(let* [x SystemSystem] (. System (startsWith (:x {:x zz}))))
+        (f/map-free-in-form (fn [s] (symbol (str s s)))
+                            '(let [x System] (. System (startsWith (:x {:x z}))))))

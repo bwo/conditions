@@ -11,6 +11,9 @@
     (or (map? arglist) (sequential? arglist)) (keep all-symbols arglist)
     :else nil)))
 
+(defn- mm [f bindings form]
+  (doall (map (map-free-in-form' f bindings) form)))
+
 (defn let-like [f bound [type bindings & forms]]
   (loop [binding-pairs (partition 2 bindings) mapped-bindings [] established-bindings bound]
     (if (seq binding-pairs)
@@ -19,10 +22,10 @@
                (conj mapped-bindings [new-bindings (map-free-in-form' f bound binding-expr)])
                (s/union established-bindings (set (all-symbols new-bindings)))))
       `(~type [~@(apply concat mapped-bindings)]
-              ~@(doall (map (map-free-in-form' f established-bindings) forms))))))
+              ~@(mm f established-bindings forms)))))
 
 (defn catch-like [f bound [c cls exc-name & forms]]
-  (let [mapped (doall (map (map-free-in-form' f (conj bound exc-name)) forms))]
+  (let [mapped (mm f (conj bound exc-name) forms)]
     `(~c ~cls ~exc-name ~@mapped)))
 
 (defn letrec-like [f bound [type bindings & forms :as expr]]
@@ -34,7 +37,7 @@
         bound (reduce conj bound (mapcat all-symbols bound-names))
         exprs (take-nth 2 (rest bindings))]
     `(~type [~@(doall (interleave bound-names (map (map-free-in-form' f bound) exprs)))]
-            ~@(doall (map (map-free-in-form' f bound) forms)))))
+            ~@(mm f bound forms))))
 
 (defn def-like [f bound [type nm expr]]
   ;; the name being defined is visible in the expression
@@ -54,7 +57,7 @@
           (let [new-bound (reduce conj bound (all-symbols arglist))]
             (recur (rest arglists)
                    (rest bodies)
-                   (conj already (doall (map (map-free-in-form' f new-bound) body)))))
+                   (conj already (mm f new-bound body))))
           `(~type ~@(when name [name])
                   ~@(doall
                      (map (fn [arglist body] `(~arglist ~@body)) all-arglists already))))))))
@@ -66,23 +69,33 @@
                                  (not= 'catch (first %))) clauses)
         finally (let [l (last clauses)]
                   (when (and (seq? l) (= 'finally (first l))) l))]
-    `(~type ~@(doall (map (map-free-in-form' f bound) regular))
+    `(~type ~@(mm f bound regular)
             ~@(doall (map #(catch-like f bound %) catches))
             ~@(when finally [(map-free-in-form' f bound finally)]))))
 
 (defn do-like [f bound [type & clauses]]
-  `(~type ~@(doall (map (map-free-in-form' f bound) clauses))))
+  `(~type ~@(mm f bound clauses)))
 
 (defn quote-like [f bound expr]
   expr)
 
-(defn case-like [f bound [type ge shift mask default imap & rest]]
+(defn case*-like [f bound [type ge shift mask default imap & rest]]
   (let [imap (->> imap
                   (map (fn [[k [m expr]]]
                          [k [m (map-free-in-form' f bound expr)]]))
                   (into {}))]
-    `(~type ~ge ~shift ~mask ~(map-free-in-form f (conj bound ge) default)
+    `(~type ~ge ~shift ~mask ~(map-free-in-form' f (conj bound ge) default)
             ~imap ~@rest)))
+
+(defn case-like [f bound [type expr & clauses]]
+  (let [has-default? (odd? (count clauses))
+        matches ((if has-default? butlast identity) (take-nth 2 clauses))
+        actions (take-nth 2 (rest clauses))
+        default (when has-default? (last clauses))]
+    `(~type ~(map-free-in-form' f bound expr)
+            ~@(doall (interleave matches
+                                 (map (map-free-in-form' f bound) actions)))
+            ~@(when has-default? [default]))))
 
 (defn method-like [f bound method]
   (let [[_ name [params & body]] (fn-like f bound (cons 'fn* method))]
@@ -109,14 +122,14 @@
             ~@(doall (map #(method-like f bound %) methods)))))
 
 (defn new-like [f bound [type cls & args]]
-  `(~type ~cls ~@(doall (map (map-free-in-form' f bound) args))))
+  `(~type ~cls ~@(mm f bound args)))
 
 (defn dot-like [f bound [type obj m]]
   (letfn [(mem-or-meth [m]
             (if (symbol? m)
               (list m)
               (let [[meth & args] m]
-                (cons meth (doall (map (map-free-in-form' f bound) args))))))]
+                (list (cons meth (mm f bound args))))))]
     (if (and (symbol? obj)
              (class? (resolve obj)))
       `(~type ~obj ~@(mem-or-meth m))
@@ -125,7 +138,8 @@
 (def binding-forms
   (let [unqualified {
                      '.              dot-like
-                     'case*          case-like
+                     'case           case-like
+                     'case*          case*-like
                      'def            def-like
                      'deftype        deftype-like
                      'deftype*       deftype*-like
@@ -186,7 +200,7 @@
       (seq? form) (cond
                    (binding-forms (first form)) (maybe-expand bindings ((binding-forms (first form)) f bindings form))
                    (macro-invocation? form)     (recur f bindings (expand-macro bindings form))
-                   :else                        (doall (map (map-free-in-form' f bindings) form)))
+                   :else                        (mm f bindings form))
       (vector? form) (mapv (map-free-in-form' f bindings) form)
       ;; breaks record literals :(
       (map? form) (->> form
@@ -204,7 +218,9 @@
 (defn map-free-in-form
   "Transform all free symbols in form by the function f. An initial
    environment may be provided. Note that this function macroexpands
-   form."
+   form.
+
+   Note that qualified symbols will always be considered free."
   ([f form]  
      (map-free-in-form #{} f form))
   ([init-env f form]
