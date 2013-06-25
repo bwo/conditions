@@ -111,9 +111,16 @@
 (defn new-like [f bound [type cls & args]]
   `(~type ~cls ~@(doall (map (map-free-in-form' f bound) args))))
 
-(defn dot-like [f bound [type obj member & args]]
-  `(~type ~(map-free-in-form' f bound obj) ~member
-          ~@(doall (map (map-free-in-form' f bound) args))))
+(defn dot-like [f bound [type obj m]]
+  (letfn [(mem-or-meth [m]
+            (if (symbol? m)
+              (list m)
+              (let [[meth & args] m]
+                (cons meth (doall (map (map-free-in-form' f bound) args))))))]
+    (if (and (symbol? obj)
+             (class? (resolve obj)))
+      `(~type ~obj ~@(mem-or-meth m))
+      `(~type ~(map-free-in-form' f bound obj) ~@(mem-or-meth m)))))
 
 (def binding-forms
   (let [unqualified {
@@ -167,14 +174,19 @@
       (recur bindings result)
       result)))
 
+(defn maybe-expand [bindings f]
+  (if (macro-invocation? f)
+    (expand-macro bindings f)
+    f))
+
 (defn map-free-in-form'
   ([f bindings] #(map-free-in-form' f bindings %))
   ([f bindings form]
      (cond
       (seq? form) (cond
-                   (binding-forms (first form)) ((binding-forms (first form)) f bindings form)
+                   (binding-forms (first form)) (maybe-expand bindings ((binding-forms (first form)) f bindings form))
                    (macro-invocation? form)     (recur f bindings (expand-macro bindings form))
-                   :else                       (doall (map (map-free-in-form' f bindings) form)))
+                   :else                        (doall (map (map-free-in-form' f bindings) form)))
       (vector? form) (mapv (map-free-in-form' f bindings) form)
       ;; breaks record literals :(
       (map? form) (->> form
