@@ -40,7 +40,8 @@
      ~exn-symbol))
 
 (defn exn-match-form [env arg-var exn catch-forms else-form]
-  (let [exn-symbol (gensym "exn-")]
+  (let [exn-symbol (gensym "exn-")
+        env (set (keys env))]
     `(let [~exn-symbol ~exn
            ~exn-symbol ~(maybe-unwrap exn-symbol)]
        (cond ~@(mapcat #(exn-match-clause env arg-var % exn-symbol) catch-forms)

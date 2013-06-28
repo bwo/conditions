@@ -1,5 +1,6 @@
 (ns conditions.free-test
-  (:require [conditions.free :as f])
+  (:require [conditions.free :as f]
+            [conditions.core :as c :refer [%]])
   (:use expectations))
 
 (defmacro aif [test then else]
@@ -65,14 +66,24 @@
                               (catch Exception e e))))
 
 (expect '#{that clojure.core/deref c first range rest}
- (f/free-in-form '(let [x (reify IDeref (deref [this] that))]
-                    (if @x
-                      (throw (loop [a (range 10)]
-                               (when-let [af (first a)]
-                                 (ArithmeticException.))
-                               (recur (rest a))))
-                      (do (var expect)
-                          (new Exception c))))))
+        (f/free-in-form {:qualified-are-free true} '(let [x (reify IDeref (deref [this] that))]
+                                                      (if @x
+                                                        (throw (loop [a (range 10)]
+                                                                 (when-let [af (first a)]
+                                                                   (ArithmeticException.))
+                                                                 (recur (rest a))))
+                                                        (do (var expect)
+                                                            (new Exception c))))))
+
+(expect '#{that c first range rest}
+        (f/free-in-form '(let [x (reify IDeref (deref [this] that))]
+                            (if @x
+                              (throw (loop [a (range 10)]
+                                       (when-let [af (first a)]
+                                         (ArithmeticException.))
+                                       (recur (rest a))))
+                              (do (var expect)
+                                  (new Exception c))))))
 
 (expect '#{try z fn*}
         (f/free-in-form '(try (let [x (fn [y] y)]
@@ -89,7 +100,7 @@
 
 
 (expect '#{clojure.core/str f}
-        (f/free-in-form '(let [x clojure.core/str] (x f))))
+        (f/free-in-form {:qualified-are-free true} '(let [x clojure.core/str] (x f))))
 
 (expect '#{f}
         (f/free-in-form false '(let [x clojure.core/str] (x f))))
@@ -101,3 +112,17 @@
 (expect '(let* [x SystemSystem] (. System (startsWith (:x {:x zz}))))
         (f/map-free-in-form (fn [s] (symbol (str s s)))
                             '(let [x System] (. System (startsWith (:x {:x z}))))))
+
+(let [r (f/replace-all-reference #{} #'c/% 'x
+                                 '(when (instance? ArithmeticException c/%) 3))]
+  (expect '(if (instance? ArithmeticException x) (do 3)) r))
+
+(let [r (f/replace-all-reference #{} #'c/% 'x
+                                 '(when (instance? ArithmeticException %) 3))]
+  (expect '(if (instance? ArithmeticException x) 3
+               r)))
+
+(let [r (f/replace-all-reference #{} #'c/% 'x
+                                 '(let [% c/%] (when (instance? ArithmeticException %) 3)))]
+  (expect '(let* [% x] (if (instance? ArithmeticException %) 3
+                           r))))

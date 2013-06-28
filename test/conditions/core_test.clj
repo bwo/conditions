@@ -1,5 +1,5 @@
 (ns conditions.core-test
-  (:require [conditions.core :as c :refer [catch]]
+  (:require [conditions.core :as c :refer [catch %]]
             [slingshot.slingshot :as slingshot])
   (:use expectations))
 
@@ -235,3 +235,33 @@
                  (c/handle (determine-infinity)
                            (catch [:type :zerodivisionerror] _ (c/resume {:type :return-value
                                                                           :value 4}))))))
+
+(defn refer-1 []
+  (c/handle (c/rthrow {}) (catch (map? %) _ :ok)))
+
+(defn refer-2 []
+  (c/handle (c/rthrow {}) (catch (fn [%] (map? %)) _ :ok)))
+
+(defn refer-fail-1 []
+  ;; this fails because we find the reference to c/% and try to invoke
+  ;; the passed value, (), as a fn
+  (let [s (fn [x] (integer? x))]
+    (c/handle (c/rthrow ()) (catch ((fn [] (% 1))) _ :ok))))
+
+(defn refer-fail-2 []
+  ;; this fails because we try to invoke a boolean as a function.
+  (let [% (fn [x] (integer? x))]
+    (c/handle (c/rthrow ()) (catch ((fn [] (% 1))) _ :ok))))
+
+(defn refer-3 []
+  ;; this succeeds because we detect that % is already bound, and when
+  ;; that's invoked, it returns a function.
+  (let [% (fn [x] (constantly (integer? x)))]
+    (c/handle (c/rthrow ()) (catch ((fn [] (% 1))) _ :ok))))
+
+
+(expect :ok (refer-1))
+(expect :ok (refer-2))
+(expect :ok (refer-3))
+(expect ClassCastException (refer-fail-1))
+(expect ClassCastException (refer-fail-2))
