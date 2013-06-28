@@ -237,10 +237,15 @@
                                                                           :value 4}))))))
 
 (defn refer-1 []
+  ;; handler expands to (map? exn-...)
   (c/handle (c/rthrow {}) (catch (map? %) _ :ok)))
 
 (defn refer-2 []
-  (c/handle (c/rthrow {}) (catch (fn [%] (map? %)) _ :ok)))
+  ;; handler expands to ((fn [%] (map? %)) exn-...)
+  ;; we prove this by *not* catching the exception (if the handler
+  ;; were incorrectly expanded to (fn [exn-...] (map? exn-...)), that
+  ;; would be truthy, and we'd catch it.
+  (c/handle (c/rthrow []) (catch (fn [%] (map? %)) _ :ok)))
 
 (defn refer-fail-1 []
   ;; this fails because we find the reference to c/% and try to invoke
@@ -261,7 +266,7 @@
 
 
 (expect :ok (refer-1))
-(expect :ok (refer-2))
+(expect clojure.lang.ExceptionInfo (refer-2))
 (expect :ok (refer-3))
 (expect ClassCastException (refer-fail-1))
 (expect ClassCastException (refer-fail-2))
