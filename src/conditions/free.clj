@@ -253,8 +253,8 @@
    that does not contain a \"/\") nor qualified symbols (any symbol
    other than / containing \"/\") are not considered free, under the
    reasoning that no local bindings can be introduced for them. The
-   keys :classes-are-free and :qualified-are-free change the
-   defaults. Symbols beginning or ending with a . are never considered free."
+   keys :classes-are-free and :qualified-are-free change the defaults.
+   Symbols beginning or ending with a . are never considered free."
   ([f form]  
      (map-free-in-form #{} f form))
   ([init-env f form]
@@ -312,7 +312,8 @@
    form with replacement. Considers qualified symbols free."
   [env var replacement form]
   (map-free-in-form (assoc default-opts :qualified-are-free true)
-                    env (fn [s] (if (= var (resolve s))
-                                 replacement
-                                 s))
+                    env
+                    (fn [s] (if (= var (resolve s))
+                             replacement
+                             s))
                     form))
