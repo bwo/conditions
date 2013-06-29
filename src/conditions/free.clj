@@ -224,7 +224,10 @@
                        (into {}))
       (set? form) (into #{} (map (map-free-in-form' f opts bindings) form))
       (and (symbol? form)
-           (not (contains? bindings form)))
+           (not (contains? bindings form))
+           (not (let [s (str form)]
+                  (or (.startsWith s ".")
+                      (.endsWith s ".")))))
       (cond
        (and (not (:classes-are-free opts)) (class-name? form))  form
        (and (not (:qualified-are-free opts)) (qualified? form)) form
@@ -243,14 +246,15 @@
    an initial environment.
 
    (map-free-in-form opts initial-env f form) uses initial-env as
-   above and opts to control whether class names and qualified symbols
-   are treated as free. The default options are contained in the
-   default-opts map; with them, neither class names (construed as any
-   symbol containing a \".\" that does not contain a \"/\") nor
-   qualified symbols (any symbol other than / containing \"/\") are
-   not considered free, under the reasoning that no local bindings can
-   be introduced for them. The keys :classes-are-free
-   and :qualified-are-free change the defaults."
+   above and opts to control whether qualified class names and
+   qualified symbols are treated as free. The default options are
+   contained in the default-opts map; with them, neither qualified
+   class names (construed as any symbol containing an interior \".\"
+   that does not contain a \"/\") nor qualified symbols (any symbol
+   other than / containing \"/\") are not considered free, under the
+   reasoning that no local bindings can be introduced for them. The
+   keys :classes-are-free and :qualified-are-free change the
+   defaults. Symbols beginning or ending with a . are never considered free."
   ([f form]  
      (map-free-in-form #{} f form))
   ([init-env f form]
