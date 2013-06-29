@@ -295,8 +295,10 @@
 
 (defn replace-free-in-form
   "Replace all free symbols in form with replacement."
-  [replacement form]
-  (map-free-in-form (constantly replacement) form))
+  ([replacement form]
+     (replace-free-in-form default-opts replacement form))
+  ([opts replacement form]
+     (map-free-in-form default-opts (constantly replacement) form)))
 
 (defn contains-reference?
   "Returns true if a free symbol not shadowed by env resolves to var
