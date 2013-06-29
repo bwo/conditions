@@ -243,7 +243,13 @@ To avoid this kind of thing, this library requires you to actually refer to the 
 ;; Consequently this one will trigger an exception, since (map? {}) is not a function!
 (let [% {}] (c/handle (c/rthrow {}) (c/catch (map? %) _ (c/resume-with 5))))
 
-;; once again, % refers to conditions.core/%, so this will work the same way as the first example.
+;; Even though % has been bound in the let to c/%, it is still
+;; considered shadowed inside c/handle, because we don't consider the
+;; value of the local binding at compile time (it might not even be
+;; available at compile time), only its existence.
+(let [% c/%] (c/handle (c/rthrow {}) (c/catch (map? %) _ (c/resume-with 5))))
+
+;; c/% explicitly refers to conditions.core/%, so this will work the same way as the first example.
 (let [% {}] (c/handle (c/rthrow {}) (c/catch (map? c/%) _ (c/resume-with 5))))
 ```
 
