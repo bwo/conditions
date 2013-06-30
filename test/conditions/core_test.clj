@@ -207,6 +207,11 @@
   (c/handle (determine-infinity)
             (c/catch [:type :zerodivisionerror] _ (c/resume {:type :return-value :value (+ n 2)}))))
 
+(defn multiple-restarts []
+  (c/handle (determine-infinity)
+            (c/catch [:type :zerodivisionerror] _ (c/resume {:type :recalc-with :value ""}))
+            (c/catch ClassCastException _ (c/resume {:type :recalc-wit :value 6}))))
+
 (expect 6 (return-valuer 4))
 (expect -1 (continuer))
 (expect 0 (return-zeroer-1))
@@ -216,6 +221,7 @@
                 r)))
 (expect 0 (return-zeroer-3))
 (expect 1/2 (restarter 2))
+(expect 1/6 (multiple-restarts))
 
 
 ;; we :refer catch, so this is kosher.
