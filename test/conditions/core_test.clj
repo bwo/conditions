@@ -276,3 +276,31 @@
 (expect :ok (refer-3))
 (expect ClassCastException (refer-fail-1))
 (expect ClassCastException (refer-fail-2))
+
+
+;;; rtry handles unhandled resumptions
+(defn handle-vector [n]
+  (c/rtry (parse-and-divide n) ;; this handles maps
+          (c/resume-with (vector? %) v (first v))))
+
+(defn handle-int [n]
+  (c/rtry (handle-vector n)
+          (c/resume-with integer? i (dec i))))
+
+(defn catch-cc [n]
+  (c/handle (handle-int n)
+            (c/catch ClassCastException _ (c/resume [1]))))
+
+(defn catch-ae [n]
+  (c/handle (catch-cc n)
+            (c/catch ArithmeticException _ (c/resume 9))))
+
+;; ArithmeticException in parse-and-divide, passes through catch-cc's
+;; handler and caught by catch-ae's handler, resumes with an integer,
+;; passes through parse-and-divide and handle-vector, caught by
+;; handle-int.
+(expect 8 (catch-ae "0"))
+
+;; ClassCastException in parse-and-divide, caught by catch-cc, resume
+;; with [1], passes through parse-and-divide and handled in handle-vector.
+(expect 1 (catch-ae 0))
