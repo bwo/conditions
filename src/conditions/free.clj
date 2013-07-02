@@ -66,11 +66,12 @@
   (let [regular (take-while #(or (not (seq? %))
                                  (and (not= 'catch (first %))
                                       (not= 'finally (first %)))) clauses)
-        catches (drop-while #(or (not (seq? %))
-                                 (not= 'catch (first %))) clauses)
+        catches (->> clauses
+                     (drop-while #(or (not (seq? %))
+                                      (not= 'catch (first %))))
+                     (take-while #(= 'catch (first %))))
         finally (let [l (last clauses)]
-                  (when (and (seq? l) (= 'finally (first l))) l))
-        catches (if finally (butlast catches) catches)]
+                  (when (and (seq? l) (= 'finally (first l))) l))]
     (let [r `(~type ~@(mm f bound opts regular)
                     ~@(doall (map #(catch-like f bound opts %) catches))
                     ~@(when finally [(map-free-in-form' f bound opts finally)]))]
