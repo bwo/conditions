@@ -64,14 +64,17 @@
 
 (defn try-like [f bound opts [type & clauses]]
   (let [regular (take-while #(or (not (seq? %))
-                                 (not= 'catch (first %))) clauses)
+                                 (and (not= 'catch (first %))
+                                      (not= 'finally (first %)))) clauses)
         catches (drop-while #(or (not (seq? %))
                                  (not= 'catch (first %))) clauses)
         finally (let [l (last clauses)]
-                  (when (and (seq? l) (= 'finally (first l))) l))]
-    `(~type ~@(mm f bound opts regular)
-            ~@(doall (map #(catch-like f bound opts %) catches))
-            ~@(when finally [(map-free-in-form' f bound opts finally)]))))
+                  (when (and (seq? l) (= 'finally (first l))) l))
+        catches (if finally (butlast catches) catches)]
+    (let [r `(~type ~@(mm f bound opts regular)
+                    ~@(doall (map #(catch-like f bound opts %) catches))
+                    ~@(when finally [(map-free-in-form' f bound opts finally)]))]
+      r)))
 
 (defn do-like [f bound opts [type & clauses]]
   `(~type ~@(mm f bound opts clauses)))

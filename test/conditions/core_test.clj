@@ -304,3 +304,15 @@
 ;; ClassCastException in parse-and-divide, caught by catch-cc, resume
 ;; with [1], passes through parse-and-divide and handled in handle-vector.
 (expect 1 (catch-ae 0))
+
+;; don't do this.
+(defn t []
+  (c/handle
+   (c/rtry (/ 1 0)
+           (c/resume-with (c/handle (c/rtry (+ 1 %)
+                                            (c/resume-with (map? %) x true))
+                                    (catch ClassCastException e (c/resume {})))
+                        v  -1))
+   (catch ArithmeticException e (c/resume {}))))
+
+(expect -1 (t))
