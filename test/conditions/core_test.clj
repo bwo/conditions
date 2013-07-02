@@ -210,7 +210,7 @@
 (defn multiple-restarts []
   (c/handle (determine-infinity)
             (c/catch [:type :zerodivisionerror] _ (c/resume {:type :recalc-with :value ""}))
-            (c/catch ClassCastException _ (c/resume {:type :recalc-wit :value 6}))))
+            (c/catch ClassCastException _ (c/resume {:type :recalc-with :value 6}))))
 
 (expect 6 (return-valuer 4))
 (expect -1 (continuer))
