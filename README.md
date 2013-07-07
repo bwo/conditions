@@ -1,18 +1,30 @@
 # conditions
 
-Simple resumable exceptions for clojure. Based loosely on [this ML implementation](http://okmij.org/ftp/ML/resumable.ml).
+Simple resumable exceptions for clojure. Based loosely on [this ML implementation](http://okmij.org/ftp/ML/resumable.ml). To use in a leiningen project:
+
+```clojure
+[bwo/conditions "0.1.0"]
+```
 
 Resumable exceptions, aka
 [conditions](http://www.gigamonkeys.com/book/beyond-exception-handling-conditions-and-restarts.html),
 allow code raising an exception to continue at the point the exception
-was raised, according to decisions made by condition handlers. For
-instance, in the following example (adapted from
+was raised, according to decisions made by condition handlers. The
+place best suited to be able to proceed in the face of an exception is
+the place where the particular exception is raised, but that is not,
+in general, the place best suited to deciding *how* to proceed: that
+is a decision that different calling code might want to make
+differently. Resumable exceptions allow higher-level functions to
+decide *what* action to take in response to exceptions, while still
+allowing the action to actually *be* taken at a lower level.
+
+For instance, in the following example (adapted from
 [c2](http://c2.com/cgi/wiki?CommonLispConditionSystem)),
 `reciprocal-of` throws an error if the divisor passed is zero, and
 provides for various responses: returning zero, returning an arbitrary
 value, and trying again with a new value. Similarly,
 `determine-infinity` allows handlers to instruct it to simply return
-`-1` if it throws an error.
+`-1` if it throws an error:
 
 ```clojure
 (require '[conditions.core :as c])
@@ -224,7 +236,7 @@ presence of `%` is all that matters:
 In (c), the symbol `%` is not free in the selector; in (e), it is free
 in the selector expression, but has a value in the environment already.
 
-To avoid this kind of thing, this library requires you to actually refer to the `catch`, `resume-with`, and `%` that it provides:
+To avoid this kind of thing, this library requires you to actually refer to the `catch`, `resume-with`, and `%` that it provides, and to refer to them in a way it can detect:
 
 ```clojure
 (require '[conditions.core :as c :refer [%]])
@@ -246,7 +258,7 @@ To avoid this kind of thing, this library requires you to actually refer to the 
 ;; Even though % has been bound in the let to c/%, it is still
 ;; considered shadowed inside c/handle, because we don't consider the
 ;; value of the local binding at compile time (it might not even be
-;; available at compile time), only its existence.
+;; available at compile time), only its existence. This results in an exception, as above.
 (let [% c/%] (c/handle (c/rthrow {}) (c/catch (map? %) _ (c/resume-with 5))))
 
 ;; c/% explicitly refers to conditions.core/%, so this will work the same way as the first example.
