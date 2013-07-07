@@ -3,6 +3,8 @@
             [slingshot.slingshot :as slingshot])
   (:use expectations))
 
+(set! *warn-on-reflection* true)
+
 (defn parse-and-divide [n]
   (c/rtry (/ 10 (Integer/parseInt n))
         (c/resume-with map? {:keys [value]} value)))
@@ -316,3 +318,9 @@
    (catch ArithmeticException e (c/resume {}))))
 
 (expect -1 (t))
+
+(deftype Condition [a])
+;; shouldn't get reflection warnings
+(expect {:x 1}
+        (c/handle (c/rthrow (Condition. 1) (c/resume-with map? x x))
+                  (catch Condition x (c/resume {:x (.a x)}))))

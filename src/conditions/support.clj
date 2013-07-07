@@ -13,26 +13,33 @@
 
 (defn- exn-pred [env arg-var matcher exn-symbol]
   (cond
-   (and (symbol? matcher) (class? (resolve matcher))) `(instance? ~matcher ~exn-symbol)
+   (and (symbol? matcher) (class? (resolve matcher)))
+   [`(instance? ~matcher ~exn-symbol) matcher]
    (vector? matcher) (if (even? (count matcher))
-                       `(and (map? ~exn-symbol)
-                             ~@(map (fn [[k v]] `(= ~v (get ~exn-symbol ~k)))
-                                    (partition 2 matcher)))
+                       [`(and (map? ~exn-symbol)
+                              ~@(map (fn [[k v]] `(= ~v (get ~exn-symbol ~k)))
+                                     (partition 2 matcher)))
+                        nil]
                        (throw (Exception.
                                (format "Bad format: %s is not in format [key value & kvs]"
                                        matcher))))
    (free/contains-reference? env arg-var matcher)
    (let [g (gensym)]
-     `(let [~g ~exn-symbol]
-        ~(free/replace-all-reference env arg-var g matcher)))
+     [`(let [~g ~exn-symbol]
+         ~(free/replace-all-reference env arg-var g matcher))
+      nil])
    ;; optimistically assume that this is a fn, even though it might not be
    (or (seq? matcher)
-       (symbol? matcher))  `(~matcher ~exn-symbol)
+       (symbol? matcher))  [`(~matcher ~exn-symbol) nil]
    :else (throw (Exception. (format "Do not know how to create a selector from %s" matcher)))))
 
 (defn exn-match-clause [env arg-var catch-form exn-symbol]
-  (let [[matcher binding & body] (rest catch-form)]
-    [(exn-pred env arg-var matcher exn-symbol) `(let [~binding ~exn-symbol] ~@body)]))
+  (let [[matcher binding & body] (rest catch-form)
+        [pred tag?] (exn-pred env arg-var matcher exn-symbol)]
+    [pred `(let [~(if (and tag? (symbol? binding))
+                    (with-meta binding {:tag tag?})
+                    binding) ~exn-symbol]
+             ~@body)]))
 
 (defn maybe-unwrap [exn-symbol]
   `(if-let [unwrapped# (s/unwrap ~exn-symbol)]
